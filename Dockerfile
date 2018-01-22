@@ -20,33 +20,22 @@
 # This runs the container with the settings as defined in the config file which is # made available to the container using the volume (-v) option. This volume is also
 # used as storage for persistent data created by the TURN server.
 
-FROM phusion/baseimage:0.9.19
+FROM debian:stretch
 MAINTAINER Simon Eisenmann <simon@struktur.de>
-
-# Set locale.
-RUN locale-gen --no-purge en_US.UTF-8
-ENV LC_ALL en_US.UTF-8
 
 ENV DEBIAN_FRONTEND noninteractive
 
-# Use baseimage-docker's init system.
-CMD ["/sbin/my_init"]
-
 # Install coturn.
-RUN apt-get update && apt-get -y install \
-	coturn
-RUN mkdir /etc/service/coturn
-ADD coturn.sh /etc/service/coturn/run
-ADD coturn.logrotate /etc/logrotate.d/coturn
-
-# Fix logrotate.
-RUN sed -i 's/su root syslog/su root adm/g' /etc/logrotate.conf
-
-# Get rid of sshd.
-RUN rm -rf /etc/service/sshd && rm -f /etc/my_init.d/00_regen_ssh_host_keys.sh
-
-# Allow volume.
-VOLUME = /srv
+RUN apt-get update && apt-get -y install coturn supervisor 
+RUN mkdir -p /etc/service/coturn
+ADD supervisord.conf /etc/service/coturn/
+ADD bootstrap.sh /etc/service/coturn
+ADD bootstrap-coturn.sh /etc/service/coturn
 
 # Clean up APT when done.
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+#RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+WORKDIR /etc/service/coturn
+RUN chmod 777 /etc/service/coturn/bootstrap-coturn.sh
+
+ENTRYPOINT ["/etc/service/coturn/bootstrap.sh"]
